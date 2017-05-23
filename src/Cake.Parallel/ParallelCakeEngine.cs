@@ -84,12 +84,13 @@ namespace Cake.Parallel.Module
             var exceptionWasThrown = false;
             Exception thrownException = null;
 
+            var logSync = new object();
+
             try
             {
                 performSetup(strategy, context);
 
                 var report = new CakeReport();
-
 
                 var targetTask = graph.Traverse(target, (taskName, cts) =>
                 {
@@ -100,13 +101,20 @@ namespace Cake.Parallel.Module
 
                     var isTarget = task.Name.Equals(target, StringComparison.OrdinalIgnoreCase);
 
-                    if (shouldExecuteTask(context, task, isTarget))
+                    var parallelContext = new ParallelCakeContext(context);
+
+                    if (shouldExecuteTask(parallelContext, task, isTarget))
                     {
-                        executeTask(context, strategy, cts, task, report);
+                        executeTask(parallelContext, strategy, cts, task, report);
                     }
                     else
                     {
-                        skipTask(context, strategy, task, report);
+                        skipTask(parallelContext, strategy, task, report);
+                    }
+
+                    lock (logSync)
+                    {
+                        parallelContext.Flush();
                     }
                 });
 
